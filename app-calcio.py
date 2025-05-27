@@ -33,27 +33,47 @@ def authenticate(username, password):
 def init_gsheet():
     try:
         # Configurazione delle credenziali Google Sheets
-        # In produzione, carica le credenziali dal file secrets.toml di Streamlit
         if "gsheet_credentials" in st.secrets:
-            credentials_info = st.secrets["gsheet_credentials"]
+            credentials_info = dict(st.secrets["gsheet_credentials"])
+            
+            # CORREZIONE: Scope corretti senza trailing slash
             credentials = Credentials.from_service_account_info(
                 credentials_info,
                 scopes=[
-                    "https://www.googleapis.com/auth/spreadsheets/",
+                    "https://www.googleapis.com/auth/spreadsheets",  # Rimosso il trailing slash
                     "https://www.googleapis.com/auth/drive"
                 ]
             )
+            
+            # Autorizzazione con gspread
             gc = gspread.authorize(credentials)
             
-            # ID del foglio Google Sheets (da sostituire con il tuo)
-            sheet_id = st.secrets.get("sheet_id", "YOUR_SHEET_ID")
-            sheet = gc.open_by_key(sheet_id).sheet1
-            return sheet
+            # ID del foglio Google Sheets
+            sheet_id = st.secrets.get("sheet_id", "1GjubMgZkxjISauMyrnQdZlunOUMEKKSGoEwk6tm7d4c")
+            
+            # CORREZIONE: Test di connessione prima di restituire il sheet
+            try:
+                spreadsheet = gc.open_by_key(sheet_id)
+                sheet = spreadsheet.sheet1
+                # Test di lettura per verificare la connessione
+                sheet.get('A1:A1')
+                return sheet
+            except gspread.exceptions.SpreadsheetNotFound:
+                st.error("❌ Foglio Google Sheets non trovato. Verifica l'ID del foglio.")
+                st.error("💡 Assicurati che il service account abbia accesso al foglio.")
+                return None
+            except gspread.exceptions.APIError as api_error:
+                st.error(f"❌ Errore API Google Sheets: {str(api_error)}")
+                st.error("💡 Verifica che le API Google Sheets e Drive siano abilitate.")
+                return None
+                
         else:
             st.warning("⚠️ Credenziali Google Sheets non configurate. Modalità demo attiva.")
             return None
+            
     except Exception as e:
         st.error(f"Errore connessione Google Sheets: {str(e)}")
+        st.error("💡 Verifica che il service account abbia accesso al foglio e che le API siano abilitate.")
         return None
 
 # Funzione per caricare i dati
@@ -64,17 +84,21 @@ def load_data():
         try:
             data = sheet.get_all_records()
             return pd.DataFrame(data)
-        except:
+        except Exception as e:
             # Se il foglio è vuoto, crea le intestazioni
-            headers = [
-                "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
-                "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
-                "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto",
-                "Data Fine Contratto", "Da Monitorare", "Note Danilo/Antonio",
-                "Note Alessio/Fabrizio", "Presentato a Miniero", "Risposta Miniero"
-            ]
-            sheet.insert_row(headers, 1)
-            return pd.DataFrame(columns=headers)
+            try:
+                headers = [
+                    "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
+                    "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
+                    "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto",
+                    "Data Fine Contratto", "Da Monitorare", "Note Danilo/Antonio",
+                    "Note Alessio/Fabrizio", "Presentato a Miniero", "Risposta Miniero"
+                ]
+                sheet.insert_row(headers, 1)
+                return pd.DataFrame(columns=headers)
+            except Exception as header_error:
+                st.error(f"Errore nell'inizializzazione del foglio: {str(header_error)}")
+                return pd.DataFrame()
     else:
         # Modalità demo con dati di esempio
         sample_data = {
