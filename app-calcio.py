@@ -39,7 +39,7 @@ def init_gsheet():
             credentials = Credentials.from_service_account_info(
                 credentials_info,
                 scopes=[
-                    "https://www.googleapis.com/spreadsheets/",
+                    "https://www.googleapis.com/auth/spreadsheets/",
                     "https://www.googleapis.com/auth/drive"
                 ]
             )
