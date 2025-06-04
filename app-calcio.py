@@ -6,6 +6,7 @@ import json
 from datetime import date, datetime
 import hashlib
 import time
+import base64
 
 # Configurazione pagina
 st.set_page_config(
@@ -29,13 +30,79 @@ USERS = {
 def authenticate(username, password):
     return username in USERS and USERS[username] == hash_password(password)
 
-# FIX: Inizializzazione robusta dello stato di sessione
+# FIX: Funzioni per gestire l'autenticazione persistente tramite URL
+def create_auth_token(username):
+    """Crea un token di autenticazione sicuro"""
+    timestamp = str(int(time.time()))
+    raw_token = f"{username}:{timestamp}:{hash_password(username + timestamp)}"
+    return base64.b64encode(raw_token.encode()).decode()
+
+def validate_auth_token(token):
+    """Valida il token di autenticazione"""
+    try:
+        decoded = base64.b64decode(token.encode()).decode()
+        parts = decoded.split(':')
+        if len(parts) != 3:
+            return None
+        
+        username, timestamp, token_hash = parts
+        
+        # Verifica che l'utente esista
+        if username not in USERS:
+            return None
+        
+        # Verifica che il token non sia troppo vecchio (24 ore)
+        current_time = int(time.time())
+        token_time = int(timestamp)
+        if current_time - token_time > 86400:  # 24 ore
+            return None
+        
+        # Verifica l'hash del token
+        expected_hash = hash_password(username + timestamp)
+        if token_hash != expected_hash:
+            return None
+        
+        return username
+    except:
+        return None
+
+def set_auth_url(username):
+    """Imposta l'URL con il token di autenticazione"""
+    token = create_auth_token(username)
+    st.query_params.update({"auth": token})
+
+def clear_auth_url():
+    """Rimuove il token dall'URL"""
+    if "auth" in st.query_params:
+        del st.query_params["auth"]
+
+def check_url_auth():
+    """Controlla se c'è un token valido nell'URL"""
+    if "auth" in st.query_params:
+        token = st.query_params["auth"]
+        username = validate_auth_token(token)
+        if username:
+            return username
+    return None
+
+# FIX: Inizializzazione robusta dello stato di sessione con controllo URL
 def initialize_session_state():
     """Inizializza tutti i parametri di sessione necessari"""
+    
+    # Prima controlla se c'è un'autenticazione valida nell'URL
+    url_username = check_url_auth()
+    
     if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
+        st.session_state.authenticated = bool(url_username)
+    
     if "username" not in st.session_state:
-        st.session_state.username = ""
+        st.session_state.username = url_username or ""
+    
+    # Se abbiamo un username dall'URL ma non siamo autenticati nel session state
+    if url_username and not st.session_state.authenticated:
+        st.session_state.authenticated = True
+        st.session_state.username = url_username
+    
     if "active_tab" not in st.session_state:
         st.session_state.active_tab = 0
     if "selected_player_index" not in st.session_state:
@@ -56,6 +123,10 @@ def keep_session_alive():
     # Forza il mantenimento dell'autenticazione
     if "authenticated" in st.session_state and st.session_state.authenticated:
         st.session_state.prevent_reset = True
+        
+        # Assicura che l'URL abbia sempre il token aggiornato
+        if st.session_state.username and "auth" not in st.query_params:
+            set_auth_url(st.session_state.username)
 
 # Funzione per inizializzare la connessione a Google Sheets
 @st.cache_resource
@@ -193,9 +264,12 @@ def safe_int_convert(value, default=0):
     except (ValueError, TypeError):
         return default
 
-# FIX: Gestione robusta del logout
+# FIX: Gestione robusta del logout con pulizia URL
 def handle_logout():
     """Gestisce il logout in modo pulito"""
+    # Pulisce l'URL dal token
+    clear_auth_url()
+    
     # Mantieni alcune informazioni di sessione se necessario
     session_id = st.session_state.get("session_id")
     
@@ -212,11 +286,11 @@ def handle_logout():
 
 # Funzione principale dell'app
 def main():
-    # FIX: Inizializzazione robusta all'avvio
+    # FIX: Inizializzazione robusta all'avvio con controllo URL
     initialize_session_state()
     keep_session_alive()
 
-    # FIX: Controllo autenticazione con persistenza migliorata
+    # FIX: Controllo autenticazione con persistenza migliorata tramite URL
     if not st.session_state.authenticated:
         st.title("🔐 Login - Gestione Giocatori")
         
@@ -232,6 +306,10 @@ def main():
                         st.session_state.authenticated = True
                         st.session_state.username = username
                         st.session_state.prevent_reset = True
+                        
+                        # FIX: Imposta il token nell'URL per la persistenza
+                        set_auth_url(username)
+                        
                         keep_session_alive()
                         st.success("✅ Accesso effettuato!")
                         time.sleep(0.5)  # Piccola pausa per mostrare il messaggio
@@ -267,6 +345,11 @@ def main():
         
         # FIX: Indicatore di sessione attiva
         st.success("🟢 Sessione attiva")
+        
+        # FIX: Pulsante per refresh dati
+        if st.button("🔄 Aggiorna Dati", key="refresh_data"):
+            load_data.clear()
+            st.rerun()
 
     # FIX: Caricamento dati con session_id per stabilità
     df = load_data(_session_id=st.session_state.session_id)
@@ -545,3 +628,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+                                
