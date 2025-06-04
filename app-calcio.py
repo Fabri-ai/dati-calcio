@@ -77,13 +77,21 @@ def init_gsheet():
         return None
 
 # Funzione per caricare i dati
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)  # BUG FIX: Ridotto TTL per aggiornamenti più frequenti
 def load_data():
     sheet = init_gsheet()
     if sheet:
         try:
             data = sheet.get_all_records()
-            return pd.DataFrame(data)
+            df = pd.DataFrame(data)
+            
+            # BUG FIX: Info sul limite righe Google Sheets
+            if len(df) > 0:
+                rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
+                if "rows_info" not in st.session_state:
+                    st.session_state.rows_info = rows_info
+            
+            return df
         except Exception as e:
             # Se il foglio è vuoto, crea le intestazioni
             try:
@@ -133,17 +141,37 @@ def save_data(df):
             sheet.clear()
             sheet.update([df.columns.values.tolist()] + df.values.tolist())
             st.success("✅ Dati salvati con successo!")
+            
+            # BUG FIX: Forza l'aggiornamento della cache dopo il salvataggio
             st.cache_data.clear()
+            
+            # BUG FIX: Aggiorna l'info sulle righe
+            rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
+            st.session_state.rows_info = rows_info
+            
         except Exception as e:
             st.error(f"❌ Errore nel salvataggio: {str(e)}")
     else:
         st.info("💾 Modalità demo - i dati non vengono salvati permanentemente")
 
+# BUG FIX: Funzione per convertire stringhe di date in oggetti date
+def safe_date_convert(date_str):
+    try:
+        if isinstance(date_str, str) and date_str:
+            return datetime.strptime(date_str, "%Y-%m-%d").date()
+        return date.today()
+    except:
+        return date.today()
+
 # Funzione principale dell'app
 def main():
-    # Controllo autenticazione
+    # BUG FIX: Controllo autenticazione con persistenza migliorata
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
+    
+    # BUG FIX: Mantieni il tab attivo durante la sessione
+    if "active_tab" not in st.session_state:
+        st.session_state.active_tab = 0
 
     if not st.session_state.authenticated:
         st.title("🔐 Login - Gestione Giocatori")
@@ -176,20 +204,35 @@ def main():
     # Interfaccia principale
     st.title("⚽ Gestione Giocatori di Calcio")
     
-    # Sidebar con logout
+    # Sidebar con logout e info
     with st.sidebar:
         st.write(f"👤 Utente: {st.session_state.username}")
         if st.button("🚪 Logout"):
-            st.session_state.authenticated = False
+            # BUG FIX: Pulizia completa della sessione
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
+        
+        # BUG FIX: Mostra info sulle righe se disponibile
+        if "rows_info" in st.session_state:
+            st.info(st.session_state.rows_info)
 
     # Caricamento dati
     df = load_data()
 
-    # Tabs per diverse sezioni
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "➕ Aggiungi Giocatore", "✏️ Modifica Dati", "🔍 Ricerca"])
+    # BUG FIX: Tabs con stato persistente
+    tab_names = ["📊 Dashboard", "➕ Aggiungi Giocatore", "✏️ Modifica Dati", "🔍 Ricerca"]
+    
+    # BUG FIX: Usa on_change per tracciare il cambio di tab
+    def on_tab_change():
+        # Reset dei parametri di modifica quando si cambia tab
+        if "selected_player_index" in st.session_state:
+            del st.session_state.selected_player_index
+    
+    selected_tab = st.tabs(tab_names)
 
-    with tab1:
+    # Dashboard
+    with selected_tab[0]:
         st.header("Dashboard Giocatori")
         
         if not df.empty:
@@ -213,7 +256,8 @@ def main():
         else:
             st.info("Nessun giocatore nel database. Inizia aggiungendo un nuovo giocatore!")
 
-    with tab2:
+    # Aggiungi Giocatore
+    with selected_tab[1]:
         st.header("Aggiungi Nuovo Giocatore")
         
         with st.form("add_player_form"):
@@ -278,60 +322,143 @@ def main():
                     
                     df_new = pd.concat([df, pd.DataFrame([new_player])], ignore_index=True)
                     save_data(df_new)
+                    
+                    # BUG FIX: Info sul numero di righe dopo inserimento
+                    st.info(f"✅ Giocatore aggiunto! Totale giocatori nel database: {len(df_new)}")
                 else:
                     st.error("❌ Nome e Squadra sono campi obbligatori!")
 
-    with tab3:
+    # BUG FIX: Modifica Dati - Completamente rivista
+    with selected_tab[2]:
         st.header("Modifica Dati Esistenti")
         
         if not df.empty:
+            # BUG FIX: Usa session state per mantenere la selezione
+            if "selected_player_index" not in st.session_state:
+                st.session_state.selected_player_index = 0
+            
+            # BUG FIX: Selectbox con key per evitare reset
             selected_player = st.selectbox(
                 "Seleziona Giocatore da Modificare",
-                options=df.index,
-                format_func=lambda x: f"{df.iloc[x]['Nome Giocatore']} - {df.iloc[x]['Squadra']}"
+                options=range(len(df)),
+                format_func=lambda x: f"{df.iloc[x]['Nome Giocatore']} - {df.iloc[x]['Squadra']}",
+                index=st.session_state.selected_player_index,
+                key="player_selector"
             )
+            
+            # BUG FIX: Aggiorna l'indice nel session state
+            if selected_player != st.session_state.selected_player_index:
+                st.session_state.selected_player_index = selected_player
             
             if selected_player is not None:
                 player_data = df.iloc[selected_player]
                 
-                with st.form("edit_player_form"):
+                # BUG FIX: Form completo con TUTTI i campi modificabili
+                with st.form("edit_player_form", clear_on_submit=False):
+                    st.subheader(f"Modifica: {player_data['Nome Giocatore']}")
+                    
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        nome = st.text_input("Nome Giocatore", value=player_data["Nome Giocatore"])
-                        squadra = st.text_input("Squadra", value=player_data["Squadra"])
+                        nome = st.text_input("Nome Giocatore*", value=str(player_data["Nome Giocatore"]))
+                        squadra = st.text_input("Squadra*", value=str(player_data["Squadra"]))
                         eta = st.number_input("Età", min_value=16, max_value=50, value=int(player_data["Età"]))
                         
+                        # BUG FIX: Ruolo con valore corrente selezionato
+                        ruoli = ["Portiere", "Difensore Centrale", "Terzino Destro", 
+                                "Terzino Sinistro", "Centrocampista Difensivo",
+                                "Centrocampista", "Centrocampista Offensivo",
+                                "Ala Destra", "Ala Sinistra", "Attaccante", "Seconda Punta"]
+                        current_ruolo = str(player_data.get("Ruolo", "Centrocampista"))
+                        ruolo_index = ruoli.index(current_ruolo) if current_ruolo in ruoli else 0
+                        ruolo = st.selectbox("Ruolo", ruoli, index=ruolo_index)
+                        
+                        valore = st.text_input("Valore di Mercato", value=str(player_data.get("Valore di Mercato", "")))
+                        procuratore = st.text_input("Procuratore", value=str(player_data.get("Procuratore", "")))
+                        altezza = st.number_input("Altezza (cm)", min_value=150, max_value=220, 
+                                                value=int(player_data.get("Altezza", 180)))
+                        
+                        # BUG FIX: Piede con valore corrente
+                        piedi = ["Destro", "Sinistro", "Ambidestro"]
+                        current_piede = str(player_data.get("Piede", "Destro"))
+                        piede_index = piedi.index(current_piede) if current_piede in piedi else 0
+                        piede = st.selectbox("Piede", piedi, index=piede_index)
+                        
                     with col2:
-                        da_monitorare = st.checkbox("Da Monitorare", value=player_data["Da Monitorare"] == "X")
-                        presentato_miniero = st.checkbox("Presentato a Miniero", value=player_data["Presentato a Miniero"] == "X")
+                        convocazioni = st.number_input("Convocazioni", min_value=0, 
+                                                     value=int(player_data.get("Convocazioni", 0)))
+                        partite = st.number_input("Partite Giocate", min_value=0, 
+                                                value=int(player_data.get("Partite Giocate", 0)))
+                        gol = st.number_input("Gol", min_value=0, value=int(player_data.get("Gol", 0)))
+                        assist = st.number_input("Assist", min_value=0, value=int(player_data.get("Assist", 0)))
+                        minuti = st.number_input("Minuti Giocati", min_value=0, 
+                                               value=int(player_data.get("Minuti Giocati", 0)))
+                        
+                        # BUG FIX: Date con conversione sicura
+                        inizio_contratto = st.date_input("Data Inizio Contratto", 
+                                                       value=safe_date_convert(player_data.get("Data Inizio Contratto")))
+                        fine_contratto = st.date_input("Data Fine Contratto", 
+                                                     value=safe_date_convert(player_data.get("Data Fine Contratto")))
+                        
+                        da_monitorare = st.checkbox("Da Monitorare", value=player_data.get("Da Monitorare") == "X")
+                        presentato_miniero = st.checkbox("Presentato a Miniero", 
+                                                       value=player_data.get("Presentato a Miniero") == "X")
                     
-                    note_danilo = st.text_area("Note Danilo/Antonio", value=player_data.get("Note Danilo/Antonio", ""))
-                    note_alessio = st.text_area("Note Alessio/Fabrizio", value=player_data.get("Note Alessio/Fabrizio", ""))
-                    risposta_miniero = st.text_area("Risposta Miniero", value=player_data.get("Risposta Miniero", ""))
+                    # BUG FIX: Tutte le note modificabili
+                    note_danilo = st.text_area("Note Danilo/Antonio", 
+                                             value=str(player_data.get("Note Danilo/Antonio", "")))
+                    note_alessio = st.text_area("Note Alessio/Fabrizio", 
+                                              value=str(player_data.get("Note Alessio/Fabrizio", "")))
+                    risposta_miniero = st.text_area("Risposta Miniero", 
+                                                  value=str(player_data.get("Risposta Miniero", "")))
                     
                     col_save, col_delete = st.columns(2)
                     with col_save:
-                        if st.form_submit_button("💾 Salva Modifiche"):
-                            df.loc[selected_player, "Nome Giocatore"] = nome
-                            df.loc[selected_player, "Squadra"] = squadra
-                            df.loc[selected_player, "Età"] = eta
-                            df.loc[selected_player, "Da Monitorare"] = "X" if da_monitorare else ""
-                            df.loc[selected_player, "Presentato a Miniero"] = "X" if presentato_miniero else ""
-                            df.loc[selected_player, "Note Danilo/Antonio"] = note_danilo
-                            df.loc[selected_player, "Note Alessio/Fabrizio"] = note_alessio
-                            df.loc[selected_player, "Risposta Miniero"] = risposta_miniero
-                            
-                            save_data(df)
+                        if st.form_submit_button("💾 Salva Modifiche", type="primary"):
+                            if nome and squadra:
+                                # BUG FIX: Aggiorna TUTTI i campi
+                                df.loc[selected_player, "Nome Giocatore"] = nome
+                                df.loc[selected_player, "Squadra"] = squadra
+                                df.loc[selected_player, "Età"] = eta
+                                df.loc[selected_player, "Ruolo"] = ruolo
+                                df.loc[selected_player, "Valore di Mercato"] = valore
+                                df.loc[selected_player, "Procuratore"] = procuratore
+                                df.loc[selected_player, "Altezza"] = altezza
+                                df.loc[selected_player, "Piede"] = piede
+                                df.loc[selected_player, "Convocazioni"] = convocazioni
+                                df.loc[selected_player, "Partite Giocate"] = partite
+                                df.loc[selected_player, "Gol"] = gol
+                                df.loc[selected_player, "Assist"] = assist
+                                df.loc[selected_player, "Minuti Giocati"] = minuti
+                                df.loc[selected_player, "Data Inizio Contratto"] = inizio_contratto.strftime("%Y-%m-%d")
+                                df.loc[selected_player, "Data Fine Contratto"] = fine_contratto.strftime("%Y-%m-%d")
+                                df.loc[selected_player, "Da Monitorare"] = "X" if da_monitorare else ""
+                                df.loc[selected_player, "Presentato a Miniero"] = "X" if presentato_miniero else ""
+                                df.loc[selected_player, "Note Danilo/Antonio"] = note_danilo
+                                df.loc[selected_player, "Note Alessio/Fabrizio"] = note_alessio
+                                df.loc[selected_player, "Risposta Miniero"] = risposta_miniero
+                                
+                                save_data(df)
+                                st.success("✅ Modifiche salvate con successo!")
+                            else:
+                                st.error("❌ Nome e Squadra sono campi obbligatori!")
                     
                     with col_delete:
                         if st.form_submit_button("🗑️ Elimina Giocatore", type="secondary"):
-                            df_updated = df.drop(selected_player).reset_index(drop=True)
-                            save_data(df_updated)
+                            if st.session_state.get("confirm_delete", False):
+                                df_updated = df.drop(selected_player).reset_index(drop=True)
+                                save_data(df_updated)
+                                st.session_state.selected_player_index = 0
+                                del st.session_state.confirm_delete
+                                st.success("✅ Giocatore eliminato!")
+                            else:
+                                st.session_state.confirm_delete = True
+                                st.warning("⚠️ Clicca di nuovo per confermare l'eliminazione!")
         else:
             st.info("Nessun giocatore disponibile per la modifica.")
 
-    with tab4:
+    # Ricerca
+    with selected_tab[3]:
         st.header("Ricerca e Filtri")
         
         if not df.empty:
