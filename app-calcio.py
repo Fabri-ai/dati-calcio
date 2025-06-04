@@ -163,6 +163,15 @@ def safe_date_convert(date_str):
     except:
         return date.today()
 
+# BUG FIX: Funzione per conversione sicura dei numeri
+def safe_int_convert(value, default=0):
+    try:
+        if pd.isna(value) or value == '' or value is None:
+            return default
+        return int(float(str(value)))
+    except (ValueError, TypeError):
+        return default
+
 # Funzione principale dell'app
 def main():
     # BUG FIX: Controllo autenticazione con persistenza migliorata
@@ -247,7 +256,12 @@ def main():
                 presented = len(df[df["Presentato a Miniero"] == "X"])
                 st.metric("Presentati a Miniero", presented)
             with col4:
-                avg_age = df["Età"].mean() if "Età" in df.columns else 0
+                # BUG FIX: Calcolo età media sicuro
+                if "Età" in df.columns and len(df) > 0:
+                    ages = pd.to_numeric(df["Età"], errors='coerce').dropna()
+                    avg_age = ages.mean() if len(ages) > 0 else 0
+                else:
+                    avg_age = 0
                 st.metric("Età Media", f"{avg_age:.1f}")
 
             # Tabella principale
@@ -362,7 +376,8 @@ def main():
                     with col1:
                         nome = st.text_input("Nome Giocatore*", value=str(player_data["Nome Giocatore"]))
                         squadra = st.text_input("Squadra*", value=str(player_data["Squadra"]))
-                        eta = st.number_input("Età", min_value=16, max_value=50, value=int(player_data["Età"]))
+                        eta = st.number_input("Età", min_value=16, max_value=50, 
+                                            value=safe_int_convert(player_data.get("Età"), 25))
                         
                         # BUG FIX: Ruolo con valore corrente selezionato
                         ruoli = ["Portiere", "Difensore Centrale", "Terzino Destro", 
@@ -376,7 +391,7 @@ def main():
                         valore = st.text_input("Valore di Mercato", value=str(player_data.get("Valore di Mercato", "")))
                         procuratore = st.text_input("Procuratore", value=str(player_data.get("Procuratore", "")))
                         altezza = st.number_input("Altezza (cm)", min_value=150, max_value=220, 
-                                                value=int(player_data.get("Altezza", 180)))
+                                                value=safe_int_convert(player_data.get("Altezza"), 180))
                         
                         # BUG FIX: Piede con valore corrente
                         piedi = ["Destro", "Sinistro", "Ambidestro"]
@@ -386,13 +401,15 @@ def main():
                         
                     with col2:
                         convocazioni = st.number_input("Convocazioni", min_value=0, 
-                                                     value=int(player_data.get("Convocazioni", 0)))
+                                                     value=safe_int_convert(player_data.get("Convocazioni"), 0))
                         partite = st.number_input("Partite Giocate", min_value=0, 
-                                                value=int(player_data.get("Partite Giocate", 0)))
-                        gol = st.number_input("Gol", min_value=0, value=int(player_data.get("Gol", 0)))
-                        assist = st.number_input("Assist", min_value=0, value=int(player_data.get("Assist", 0)))
+                                                value=safe_int_convert(player_data.get("Partite Giocate"), 0))
+                        gol = st.number_input("Gol", min_value=0, 
+                                            value=safe_int_convert(player_data.get("Gol"), 0))
+                        assist = st.number_input("Assist", min_value=0, 
+                                               value=safe_int_convert(player_data.get("Assist"), 0))
                         minuti = st.number_input("Minuti Giocati", min_value=0, 
-                                               value=int(player_data.get("Minuti Giocati", 0)))
+                                               value=safe_int_convert(player_data.get("Minuti Giocati"), 0))
                         
                         # BUG FIX: Date con conversione sicura
                         inizio_contratto = st.date_input("Data Inizio Contratto", 
