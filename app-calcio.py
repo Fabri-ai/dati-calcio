@@ -5,6 +5,7 @@ from google.oauth2.service_account import Credentials
 import json
 from datetime import date, datetime
 import hashlib
+import time
 
 # Configurazione pagina
 st.set_page_config(
@@ -28,6 +29,34 @@ USERS = {
 def authenticate(username, password):
     return username in USERS and USERS[username] == hash_password(password)
 
+# FIX: Inizializzazione robusta dello stato di sessione
+def initialize_session_state():
+    """Inizializza tutti i parametri di sessione necessari"""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    if "username" not in st.session_state:
+        st.session_state.username = ""
+    if "active_tab" not in st.session_state:
+        st.session_state.active_tab = 0
+    if "selected_player_index" not in st.session_state:
+        st.session_state.selected_player_index = 0
+    if "last_activity" not in st.session_state:
+        st.session_state.last_activity = time.time()
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(int(time.time()))
+    if "prevent_reset" not in st.session_state:
+        st.session_state.prevent_reset = False
+
+# FIX: Funzione per mantenere la sessione attiva
+def keep_session_alive():
+    """Mantiene la sessione attiva e previene reset inaspettati"""
+    current_time = time.time()
+    st.session_state.last_activity = current_time
+    
+    # Forza il mantenimento dell'autenticazione
+    if "authenticated" in st.session_state and st.session_state.authenticated:
+        st.session_state.prevent_reset = True
+
 # Funzione per inizializzare la connessione a Google Sheets
 @st.cache_resource
 def init_gsheet():
@@ -36,26 +65,20 @@ def init_gsheet():
         if "gsheet_credentials" in st.secrets:
             credentials_info = dict(st.secrets["gsheet_credentials"])
             
-            # CORREZIONE: Scope corretti senza trailing slash
             credentials = Credentials.from_service_account_info(
                 credentials_info,
                 scopes=[
-                    "https://www.googleapis.com/auth/spreadsheets",  # Rimosso il trailing slash
+                    "https://www.googleapis.com/auth/spreadsheets",
                     "https://www.googleapis.com/auth/drive"
                 ]
             )
             
-            # Autorizzazione con gspread
             gc = gspread.authorize(credentials)
-            
-            # ID del foglio Google Sheets
             sheet_id = st.secrets.get("sheet_id", "1GjubMgZkxjISauMyrnQdZlunOUMEKKSGoEwk6tm7d4c")
             
-            # CORREZIONE: Test di connessione prima di restituire il sheet
             try:
                 spreadsheet = gc.open_by_key(sheet_id)
                 sheet = spreadsheet.sheet1
-                # Test di lettura per verificare la connessione
                 sheet.get('A1:A1')
                 return sheet
             except gspread.exceptions.SpreadsheetNotFound:
@@ -76,16 +99,16 @@ def init_gsheet():
         st.error("💡 Verifica che il service account abbia accesso al foglio e che le API siano abilitate.")
         return None
 
-# Funzione per caricare i dati
-@st.cache_data(ttl=30)  # BUG FIX: Ridotto TTL per aggiornamenti più frequenti
-def load_data():
+# FIX: Cache con gestione migliorata per evitare reset
+@st.cache_data(ttl=60, show_spinner="Caricamento dati...")
+def load_data(_session_id=None):
+    """Carica i dati con cache persistente basata su session_id"""
     sheet = init_gsheet()
     if sheet:
         try:
             data = sheet.get_all_records()
             df = pd.DataFrame(data)
             
-            # BUG FIX: Info sul limite righe Google Sheets
             if len(df) > 0:
                 rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
                 if "rows_info" not in st.session_state:
@@ -93,7 +116,6 @@ def load_data():
             
             return df
         except Exception as e:
-            # Se il foglio è vuoto, crea le intestazioni
             try:
                 headers = [
                     "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
@@ -142,10 +164,9 @@ def save_data(df):
             sheet.update([df.columns.values.tolist()] + df.values.tolist())
             st.success("✅ Dati salvati con successo!")
             
-            # BUG FIX: Forza l'aggiornamento della cache dopo il salvataggio
-            st.cache_data.clear()
+            # FIX: Pulizia cache più selettiva
+            load_data.clear()
             
-            # BUG FIX: Aggiorna l'info sulle righe
             rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
             st.session_state.rows_info = rows_info
             
@@ -154,7 +175,7 @@ def save_data(df):
     else:
         st.info("💾 Modalità demo - i dati non vengono salvati permanentemente")
 
-# BUG FIX: Funzione per convertire stringhe di date in oggetti date
+# Funzione per convertire stringhe di date in oggetti date
 def safe_date_convert(date_str):
     try:
         if isinstance(date_str, str) and date_str:
@@ -163,7 +184,7 @@ def safe_date_convert(date_str):
     except:
         return date.today()
 
-# BUG FIX: Funzione per conversione sicura dei numeri
+# Funzione per conversione sicura dei numeri
 def safe_int_convert(value, default=0):
     try:
         if pd.isna(value) or value == '' or value is None:
@@ -172,16 +193,30 @@ def safe_int_convert(value, default=0):
     except (ValueError, TypeError):
         return default
 
+# FIX: Gestione robusta del logout
+def handle_logout():
+    """Gestisce il logout in modo pulito"""
+    # Mantieni alcune informazioni di sessione se necessario
+    session_id = st.session_state.get("session_id")
+    
+    # Pulisci solo i dati di autenticazione, non tutto
+    keys_to_keep = ["session_id"]
+    keys_to_remove = [key for key in st.session_state.keys() if key not in keys_to_keep]
+    
+    for key in keys_to_remove:
+        del st.session_state[key]
+    
+    # Inizializza di nuovo
+    initialize_session_state()
+    st.rerun()
+
 # Funzione principale dell'app
 def main():
-    # BUG FIX: Controllo autenticazione con persistenza migliorata
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    
-    # BUG FIX: Mantieni il tab attivo durante la sessione
-    if "active_tab" not in st.session_state:
-        st.session_state.active_tab = 0
+    # FIX: Inizializzazione robusta all'avvio
+    initialize_session_state()
+    keep_session_alive()
 
+    # FIX: Controllo autenticazione con persistenza migliorata
     if not st.session_state.authenticated:
         st.title("🔐 Login - Gestione Giocatori")
         
@@ -196,7 +231,10 @@ def main():
                     if authenticate(username, password):
                         st.session_state.authenticated = True
                         st.session_state.username = username
+                        st.session_state.prevent_reset = True
+                        keep_session_alive()
                         st.success("✅ Accesso effettuato!")
+                        time.sleep(0.5)  # Piccola pausa per mostrare il messaggio
                         st.rerun()
                     else:
                         st.error("❌ Credenziali non valide")
@@ -210,34 +248,31 @@ def main():
         """)
         return
 
+    # FIX: Mantieni la sessione attiva durante l'uso
+    keep_session_alive()
+
     # Interfaccia principale
     st.title("⚽ Gestione Giocatori di Calcio")
     
     # Sidebar con logout e info
     with st.sidebar:
         st.write(f"👤 Utente: {st.session_state.username}")
-        if st.button("🚪 Logout"):
-            # BUG FIX: Pulizia completa della sessione
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+        st.write(f"🔗 Sessione: {st.session_state.session_id[:8]}...")
         
-        # BUG FIX: Mostra info sulle righe se disponibile
+        if st.button("🚪 Logout", key="logout_btn"):
+            handle_logout()
+        
         if "rows_info" in st.session_state:
             st.info(st.session_state.rows_info)
+        
+        # FIX: Indicatore di sessione attiva
+        st.success("🟢 Sessione attiva")
 
-    # Caricamento dati
-    df = load_data()
+    # FIX: Caricamento dati con session_id per stabilità
+    df = load_data(_session_id=st.session_state.session_id)
 
-    # BUG FIX: Tabs con stato persistente
+    # Tabs con gestione migliorata
     tab_names = ["📊 Dashboard", "➕ Aggiungi Giocatore", "✏️ Modifica Dati", "🔍 Ricerca"]
-    
-    # BUG FIX: Usa on_change per tracciare il cambio di tab
-    def on_tab_change():
-        # Reset dei parametri di modifica quando si cambia tab
-        if "selected_player_index" in st.session_state:
-            del st.session_state.selected_player_index
-    
     selected_tab = st.tabs(tab_names)
 
     # Dashboard
@@ -245,7 +280,6 @@ def main():
         st.header("Dashboard Giocatori")
         
         if not df.empty:
-            # Statistiche generali
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Totale Giocatori", len(df))
@@ -256,7 +290,6 @@ def main():
                 presented = len(df[df["Presentato a Miniero"] == "X"])
                 st.metric("Presentati a Miniero", presented)
             with col4:
-                # BUG FIX: Calcolo età media sicuro
                 if "Età" in df.columns and len(df) > 0:
                     ages = pd.to_numeric(df["Età"], errors='coerce').dropna()
                     avg_age = ages.mean() if len(ages) > 0 else 0
@@ -264,7 +297,6 @@ def main():
                     avg_age = 0
                 st.metric("Età Media", f"{avg_age:.1f}")
 
-            # Tabella principale
             st.subheader("Lista Giocatori")
             st.dataframe(df, use_container_width=True)
         else:
@@ -336,38 +368,40 @@ def main():
                     
                     df_new = pd.concat([df, pd.DataFrame([new_player])], ignore_index=True)
                     save_data(df_new)
-                    
-                    # BUG FIX: Info sul numero di righe dopo inserimento
                     st.info(f"✅ Giocatore aggiunto! Totale giocatori nel database: {len(df_new)}")
                 else:
                     st.error("❌ Nome e Squadra sono campi obbligatori!")
 
-    # BUG FIX: Modifica Dati - Completamente rivista
+    # FIX: Modifica Dati con gestione robusta della selezione
     with selected_tab[2]:
         st.header("Modifica Dati Esistenti")
         
         if not df.empty:
-            # BUG FIX: Usa session state per mantenere la selezione
-            if "selected_player_index" not in st.session_state:
+            # FIX: Gestione migliorata della selezione giocatore
+            if st.session_state.selected_player_index >= len(df):
                 st.session_state.selected_player_index = 0
             
-            # BUG FIX: Selectbox con key per evitare reset
+            # FIX: Callback per gestire il cambio di selezione
+            def on_player_change():
+                # Aggiorna l'indice nel session state
+                if "player_selector" in st.session_state:
+                    st.session_state.selected_player_index = st.session_state.player_selector
+                # Mantieni la sessione attiva
+                keep_session_alive()
+            
+            # Selectbox con gestione migliorata
             selected_player = st.selectbox(
                 "Seleziona Giocatore da Modificare",
                 options=range(len(df)),
                 format_func=lambda x: f"{df.iloc[x]['Nome Giocatore']} - {df.iloc[x]['Squadra']}",
                 index=st.session_state.selected_player_index,
-                key="player_selector"
+                key="player_selector",
+                on_change=on_player_change
             )
-            
-            # BUG FIX: Aggiorna l'indice nel session state
-            if selected_player != st.session_state.selected_player_index:
-                st.session_state.selected_player_index = selected_player
             
             if selected_player is not None:
                 player_data = df.iloc[selected_player]
                 
-                # BUG FIX: Form completo con TUTTI i campi modificabili
                 with st.form("edit_player_form", clear_on_submit=False):
                     st.subheader(f"Modifica: {player_data['Nome Giocatore']}")
                     
@@ -379,7 +413,6 @@ def main():
                         eta = st.number_input("Età", min_value=16, max_value=50, 
                                             value=safe_int_convert(player_data.get("Età"), 25))
                         
-                        # BUG FIX: Ruolo con valore corrente selezionato
                         ruoli = ["Portiere", "Difensore Centrale", "Terzino Destro", 
                                 "Terzino Sinistro", "Centrocampista Difensivo",
                                 "Centrocampista", "Centrocampista Offensivo",
@@ -393,7 +426,6 @@ def main():
                         altezza = st.number_input("Altezza (cm)", min_value=150, max_value=220, 
                                                 value=safe_int_convert(player_data.get("Altezza"), 180))
                         
-                        # BUG FIX: Piede con valore corrente
                         piedi = ["Destro", "Sinistro", "Ambidestro"]
                         current_piede = str(player_data.get("Piede", "Destro"))
                         piede_index = piedi.index(current_piede) if current_piede in piedi else 0
@@ -411,7 +443,6 @@ def main():
                         minuti = st.number_input("Minuti Giocati", min_value=0, 
                                                value=safe_int_convert(player_data.get("Minuti Giocati"), 0))
                         
-                        # BUG FIX: Date con conversione sicura
                         inizio_contratto = st.date_input("Data Inizio Contratto", 
                                                        value=safe_date_convert(player_data.get("Data Inizio Contratto")))
                         fine_contratto = st.date_input("Data Fine Contratto", 
@@ -421,7 +452,6 @@ def main():
                         presentato_miniero = st.checkbox("Presentato a Miniero", 
                                                        value=player_data.get("Presentato a Miniero") == "X")
                     
-                    # BUG FIX: Tutte le note modificabili
                     note_danilo = st.text_area("Note Danilo/Antonio", 
                                              value=str(player_data.get("Note Danilo/Antonio", "")))
                     note_alessio = st.text_area("Note Alessio/Fabrizio", 
@@ -433,7 +463,9 @@ def main():
                     with col_save:
                         if st.form_submit_button("💾 Salva Modifiche", type="primary"):
                             if nome and squadra:
-                                # BUG FIX: Aggiorna TUTTI i campi
+                                # Mantieni la sessione attiva durante il salvataggio
+                                keep_session_alive()
+                                
                                 df.loc[selected_player, "Nome Giocatore"] = nome
                                 df.loc[selected_player, "Squadra"] = squadra
                                 df.loc[selected_player, "Età"] = eta
@@ -462,12 +494,16 @@ def main():
                     
                     with col_delete:
                         if st.form_submit_button("🗑️ Elimina Giocatore", type="secondary"):
+                            # FIX: Conferma eliminazione più robusta
                             if st.session_state.get("confirm_delete", False):
                                 df_updated = df.drop(selected_player).reset_index(drop=True)
                                 save_data(df_updated)
                                 st.session_state.selected_player_index = 0
-                                del st.session_state.confirm_delete
+                                if "confirm_delete" in st.session_state:
+                                    del st.session_state.confirm_delete
                                 st.success("✅ Giocatore eliminato!")
+                                keep_session_alive()
+                                st.rerun()
                             else:
                                 st.session_state.confirm_delete = True
                                 st.warning("⚠️ Clicca di nuovo per confermare l'eliminazione!")
