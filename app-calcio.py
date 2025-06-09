@@ -189,11 +189,11 @@ def load_data(_session_id=None):
         except Exception as e:
             try:
                 headers = [
-                    "Nome Giocatore", "Squadra", "Link TM", "Età", "Ruolo", "Valore di Mercato",
+                    "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
                     "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
                     "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto",
                     "Data Fine Contratto", "Da Monitorare", "Note Danilo/Antonio",
-                    "Note Alessio/Fabrizio", "Extracomunitario", "Livello", "Decisione finale", "Presentato a Miniero", "Risposta Miniero"
+                    "Note Alessio/Fabrizio", "Presentato a Miniero", "Risposta Miniero"
                 ]
                 sheet.insert_row(headers, 1)
                 return pd.DataFrame(columns=headers)
