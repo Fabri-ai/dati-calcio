@@ -193,8 +193,7 @@ def load_data(_session_id=None):
                     "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
                     "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto",
                     "Data Fine Contratto", "Da Monitorare", "Note Danilo/Antonio",
-                    "Note Alessio/Fabrizio", "Presentato a Miniero", "Risposta Miniero",
-                    "Link TM"
+                    "Note Alessio/Fabrizio", "Presentato a Miniero", "Risposta Miniero"
                 ]
                 sheet.insert_row(headers, 1)
                 return pd.DataFrame(columns=headers)
@@ -223,8 +222,7 @@ def load_data(_session_id=None):
             "Note Danilo/Antonio": ["Buon potenziale", "Ottimo in zona gol"],
             "Note Alessio/Fabrizio": ["Da seguire", "Pronto per il salto"],
             "Presentato a Miniero": ["X", ""],
-            "Risposta Miniero": ["Interessante", "Da valutare"],
-            "Link TM": ["https://www.transfermarkt.it/mario-rossi/profil/spieler/123456", "https://www.transfermarkt.it/luca-bianchi/profil/spieler/789012"]
+            "Risposta Miniero": ["Interessante", "Da valutare"]
         }
         return pd.DataFrame(sample_data)
 
@@ -408,7 +406,6 @@ def main():
                 procuratore = st.text_input("Procuratore")
                 altezza = st.number_input("Altezza (cm)", min_value=150, max_value=220, value=180)
                 piede = st.selectbox("Piede", ["Destro", "Sinistro", "Ambidestro"])
-                link_tm = st.text_input("Link TM (Transfermarkt)", placeholder="https://www.transfermarkt.it/...")
                 
             with col2:
                 convocazioni = st.number_input("Convocazioni", min_value=0, value=0)
@@ -449,8 +446,7 @@ def main():
                         "Note Danilo/Antonio": note_danilo,
                         "Note Alessio/Fabrizio": note_alessio,
                         "Presentato a Miniero": "X" if presentato_miniero else "",
-                        "Risposta Miniero": risposta_miniero,
-                        "Link TM": link_tm
+                        "Risposta Miniero": risposta_miniero
                     }
                     
                     df_new = pd.concat([df, pd.DataFrame([new_player])], ignore_index=True)
@@ -518,10 +514,6 @@ def main():
                         piede_index = piedi.index(current_piede) if current_piede in piedi else 0
                         piede = st.selectbox("Piede", piedi, index=piede_index)
                         
-                        link_tm = st.text_input("Link TM (Transfermarkt)", 
-                                              value=str(player_data.get("Link TM", "")),
-                                              placeholder="https://www.transfermarkt.it/...")
-                        
                     with col2:
                         convocazioni = st.number_input("Convocazioni", min_value=0, 
                                                      value=safe_int_convert(player_data.get("Convocazioni"), 0))
@@ -577,7 +569,6 @@ def main():
                                 df.loc[selected_player, "Note Danilo/Antonio"] = note_danilo
                                 df.loc[selected_player, "Note Alessio/Fabrizio"] = note_alessio
                                 df.loc[selected_player, "Risposta Miniero"] = risposta_miniero
-                                df.loc[selected_player, "Link TM"] = link_tm
                                 
                                 save_data(df)
                                 st.success("✅ Modifiche salvate con successo!")
@@ -637,3 +628,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+                                
