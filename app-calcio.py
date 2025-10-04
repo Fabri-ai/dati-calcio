@@ -221,9 +221,9 @@ def load_data(_session_id=None):
             "Gol": [8, 15],
             "Assist": [12, 7],
             "Minuti Giocati": [3200, 3650],
-            "Numero Visione Partite": [5, 8],
             "Data Inizio Contratto": ["2022-07-01", "2021-08-15"],
             "Data Fine Contratto": ["2025-06-30", "2024-07-31"],
+            "Numero Visione Partite": [5, 8],
             "Da Monitorare": ["X", ""],
             "Note Danilo/Antonio": ["Buon potenziale", "Ottimo in zona gol"],
             "Note Alessio/Fabrizio": ["Da seguire", "Pronto per il salto"],
@@ -448,9 +448,9 @@ def main():
                         "Gol": gol,
                         "Assist": assist,
                         "Minuti Giocati": minuti,
-                        "Numero Visione Partite": numero_visione,
                         "Data Inizio Contratto": inizio_contratto.strftime("%Y-%m-%d"),
                         "Data Fine Contratto": fine_contratto.strftime("%Y-%m-%d"),
+                        "Numero Visione Partite": numero_visione,
                         "Da Monitorare": "X" if da_monitorare else "",
                         "Note Danilo/Antonio": note_danilo,
                         "Note Alessio/Fabrizio": note_alessio,
@@ -574,9 +574,9 @@ def main():
                                 df.loc[selected_player, "Gol"] = gol
                                 df.loc[selected_player, "Assist"] = assist
                                 df.loc[selected_player, "Minuti Giocati"] = minuti
-                                df.loc[selected_player, "Numero Visione Partite"] = numero_visione
                                 df.loc[selected_player, "Data Inizio Contratto"] = inizio_contratto.strftime("%Y-%m-%d")
                                 df.loc[selected_player, "Data Fine Contratto"] = fine_contratto.strftime("%Y-%m-%d")
+                                df.loc[selected_player, "Numero Visione Partite"] = numero_visione
                                 df.loc[selected_player, "Da Monitorare"] = "X" if da_monitorare else ""
                                 df.loc[selected_player, "Presentato a Miniero"] = "X" if presentato_miniero else ""
                                 df.loc[selected_player, "Note Danilo/Antonio"] = note_danilo
