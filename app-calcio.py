@@ -429,6 +429,15 @@ def main():
                 altezza = st.number_input("Altezza (cm)", min_value=150, max_value=220, value=180)
                 piede = st.selectbox("Piede", ["Destro", "Sinistro", "Ambidestro"])
                 
+                st.write("")  # Spaziatura
+                col_liv1, col_liv2, col_liv3 = st.columns(3)
+                with col_liv1:
+                    livello_1 = st.checkbox("Livello 1")
+                with col_liv2:
+                    livello_2 = st.checkbox("Livello 2")
+                with col_liv3:
+                    livello_1_prospettiva = st.checkbox("Livello 1 Prospettiva")
+                
             with col2:
                 convocazioni = st.number_input("Convocazioni", min_value=0, value=0)
                 partite = st.number_input("Partite Giocate", min_value=0, value=0)
@@ -447,14 +456,6 @@ def main():
             note_danilo = st.text_area("Note Danilo/Antonio")
             note_alessio = st.text_area("Note Alessio/Fabrizio")
             risposta_miniero = st.text_area("Risposta Miniero")
-            
-            col_flags1, col_flags2, col_flags3 = st.columns(3)
-            with col_flags1:
-                livello_1 = st.checkbox("Livello 1")
-            with col_flags2:
-                livello_2 = st.checkbox("Livello 2")
-            with col_flags3:
-                livello_1_prospettiva = st.checkbox("Livello 1 Prospettiva")
             
             link_transfermarkt = st.text_input("Link Transfermarkt", placeholder="https://www.transfermarkt.it/...")
             
@@ -553,6 +554,16 @@ def main():
                         piede_index = piedi.index(current_piede) if current_piede in piedi else 0
                         piede = st.selectbox("Piede", piedi, index=piede_index)
                         
+                        st.write("")  # Spaziatura
+                        col_liv1, col_liv2, col_liv3 = st.columns(3)
+                        with col_liv1:
+                            livello_1 = st.checkbox("Livello 1", value=player_data.get("Livello 1") == "X")
+                        with col_liv2:
+                            livello_2 = st.checkbox("Livello 2", value=player_data.get("Livello 2") == "X")
+                        with col_liv3:
+                            livello_1_prospettiva = st.checkbox("Livello 1 Prospettiva", 
+                                                               value=player_data.get("Livello 1 Prospettiva") == "X")
+                        
                     with col2:
                         convocazioni = st.number_input("Convocazioni", min_value=0, 
                                                      value=safe_int_convert(player_data.get("Convocazioni"), 0))
@@ -583,15 +594,6 @@ def main():
                                               value=str(player_data.get("Note Alessio/Fabrizio", "")))
                     risposta_miniero = st.text_area("Risposta Miniero", 
                                                   value=str(player_data.get("Risposta Miniero", "")))
-                    
-                    col_flags1, col_flags2, col_flags3 = st.columns(3)
-                    with col_flags1:
-                        livello_1 = st.checkbox("Livello 1", value=player_data.get("Livello 1") == "X")
-                    with col_flags2:
-                        livello_2 = st.checkbox("Livello 2", value=player_data.get("Livello 2") == "X")
-                    with col_flags3:
-                        livello_1_prospettiva = st.checkbox("Livello 1 Prospettiva", 
-                                                           value=player_data.get("Livello 1 Prospettiva") == "X")
                     
                     link_transfermarkt = st.text_input("Link Transfermarkt", 
                                                       value=str(player_data.get("Link Transfermarkt", "")),
