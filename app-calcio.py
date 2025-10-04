@@ -534,14 +534,13 @@ def main():
                                                value=safe_int_convert(player_data.get("Assist"), 0))
                         minuti = st.number_input("Minuti Giocati", min_value=0, 
                                                value=safe_int_convert(player_data.get("Minuti Giocati"), 0))
+                        numero_visione = st.number_input("Numero Visione Partite", min_value=0, 
+                                                        value=safe_int_convert(player_data.get("Numero Visione Partite"), 0))
                         
                         inizio_contratto = st.date_input("Data Inizio Contratto", 
                                                        value=safe_date_convert(player_data.get("Data Inizio Contratto")))
                         fine_contratto = st.date_input("Data Fine Contratto", 
                                                      value=safe_date_convert(player_data.get("Data Fine Contratto")))
-                        
-                        numero_visione = st.number_input("Numero Visione Partite", min_value=0, 
-                                                        value=safe_int_convert(player_data.get("Numero Visione Partite"), 0))
                         
                         da_monitorare = st.checkbox("Da Monitorare", value=player_data.get("Da Monitorare") == "X")
                         presentato_miniero = st.checkbox("Presentato a Miniero", 
