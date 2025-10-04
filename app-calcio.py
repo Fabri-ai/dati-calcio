@@ -184,6 +184,16 @@ def load_data(_session_id=None):
             if len(df) > 0 and "Numero Visione Partite" not in df.columns:
                 df["Numero Visione Partite"] = 0
             
+            # Aggiungi le nuove colonne se non esistono
+            if len(df) > 0 and "Livello 1" not in df.columns:
+                df["Livello 1"] = ""
+            if len(df) > 0 and "Livello 2" not in df.columns:
+                df["Livello 2"] = ""
+            if len(df) > 0 and "Livello 1 Prospettiva" not in df.columns:
+                df["Livello 1 Prospettiva"] = ""
+            if len(df) > 0 and "Link Transfermarkt" not in df.columns:
+                df["Link Transfermarkt"] = ""
+            
             if len(df) > 0:
                 rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
                 if "rows_info" not in st.session_state:
@@ -198,7 +208,8 @@ def load_data(_session_id=None):
                     "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
                     "Data Fine Contratto", "Numero Visione Partite", "Da Monitorare", 
                     "Note Danilo/Antonio", "Note Alessio/Fabrizio", "Presentato a Miniero", 
-                    "Risposta Miniero"
+                    "Risposta Miniero", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
+                    "Link Transfermarkt"
                 ]
                 sheet.insert_row(headers, 1)
                 return pd.DataFrame(columns=headers)
@@ -228,7 +239,12 @@ def load_data(_session_id=None):
             "Note Danilo/Antonio": ["Buon potenziale", "Ottimo in zona gol"],
             "Note Alessio/Fabrizio": ["Da seguire", "Pronto per il salto"],
             "Presentato a Miniero": ["X", ""],
-            "Risposta Miniero": ["Interessante", "Da valutare"]
+            "Risposta Miniero": ["Interessante", "Da valutare"],
+            "Livello 1": ["X", ""],
+            "Livello 2": ["", "X"],
+            "Livello 1 Prospettiva": ["", "X"],
+            "Link Transfermarkt": ["https://www.transfermarkt.it/mario-rossi/profil/spieler/123456", 
+                                   "https://www.transfermarkt.it/luca-bianchi/profil/spieler/789012"]
         }
         return pd.DataFrame(sample_data)
 
@@ -432,6 +448,16 @@ def main():
             note_alessio = st.text_area("Note Alessio/Fabrizio")
             risposta_miniero = st.text_area("Risposta Miniero")
             
+            col_flags1, col_flags2, col_flags3 = st.columns(3)
+            with col_flags1:
+                livello_1 = st.checkbox("Livello 1")
+            with col_flags2:
+                livello_2 = st.checkbox("Livello 2")
+            with col_flags3:
+                livello_1_prospettiva = st.checkbox("Livello 1 Prospettiva")
+            
+            link_transfermarkt = st.text_input("Link Transfermarkt", placeholder="https://www.transfermarkt.it/...")
+            
             if st.form_submit_button("➕ Aggiungi Giocatore"):
                 if nome and squadra:
                     new_player = {
@@ -455,7 +481,11 @@ def main():
                         "Note Danilo/Antonio": note_danilo,
                         "Note Alessio/Fabrizio": note_alessio,
                         "Presentato a Miniero": "X" if presentato_miniero else "",
-                        "Risposta Miniero": risposta_miniero
+                        "Risposta Miniero": risposta_miniero,
+                        "Livello 1": "X" if livello_1 else "",
+                        "Livello 2": "X" if livello_2 else "",
+                        "Livello 1 Prospettiva": "X" if livello_1_prospettiva else "",
+                        "Link Transfermarkt": link_transfermarkt
                     }
                     
                     df_new = pd.concat([df, pd.DataFrame([new_player])], ignore_index=True)
@@ -554,6 +584,19 @@ def main():
                     risposta_miniero = st.text_area("Risposta Miniero", 
                                                   value=str(player_data.get("Risposta Miniero", "")))
                     
+                    col_flags1, col_flags2, col_flags3 = st.columns(3)
+                    with col_flags1:
+                        livello_1 = st.checkbox("Livello 1", value=player_data.get("Livello 1") == "X")
+                    with col_flags2:
+                        livello_2 = st.checkbox("Livello 2", value=player_data.get("Livello 2") == "X")
+                    with col_flags3:
+                        livello_1_prospettiva = st.checkbox("Livello 1 Prospettiva", 
+                                                           value=player_data.get("Livello 1 Prospettiva") == "X")
+                    
+                    link_transfermarkt = st.text_input("Link Transfermarkt", 
+                                                      value=str(player_data.get("Link Transfermarkt", "")),
+                                                      placeholder="https://www.transfermarkt.it/...")
+                    
                     col_save, col_delete = st.columns(2)
                     with col_save:
                         if st.form_submit_button("💾 Salva Modifiche", type="primary"):
@@ -582,6 +625,10 @@ def main():
                                 df.loc[selected_player, "Note Danilo/Antonio"] = note_danilo
                                 df.loc[selected_player, "Note Alessio/Fabrizio"] = note_alessio
                                 df.loc[selected_player, "Risposta Miniero"] = risposta_miniero
+                                df.loc[selected_player, "Livello 1"] = "X" if livello_1 else ""
+                                df.loc[selected_player, "Livello 2"] = "X" if livello_2 else ""
+                                df.loc[selected_player, "Livello 1 Prospettiva"] = "X" if livello_1_prospettiva else ""
+                                df.loc[selected_player, "Link Transfermarkt"] = link_transfermarkt
                                 
                                 save_data(df)
                                 st.success("✅ Modifiche salvate con successo!")
