@@ -180,6 +180,10 @@ def load_data(_session_id=None):
             data = sheet.get_all_records()
             df = pd.DataFrame(data)
             
+            # Aggiungi la colonna "Numero Visione Partite" se non esiste
+            if len(df) > 0 and "Numero Visione Partite" not in df.columns:
+                df["Numero Visione Partite"] = 0
+            
             if len(df) > 0:
                 rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
                 if "rows_info" not in st.session_state:
@@ -191,9 +195,10 @@ def load_data(_session_id=None):
                 headers = [
                     "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
                     "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
-                    "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto",
-                    "Data Fine Contratto", "Da Monitorare", "Note Danilo/Antonio",
-                    "Note Alessio/Fabrizio", "Presentato a Miniero", "Risposta Miniero"
+                    "Gol", "Assist", "Minuti Giocati", "Numero Visione Partite",
+                    "Data Inizio Contratto", "Data Fine Contratto", "Da Monitorare", 
+                    "Note Danilo/Antonio", "Note Alessio/Fabrizio", "Presentato a Miniero", 
+                    "Risposta Miniero"
                 ]
                 sheet.insert_row(headers, 1)
                 return pd.DataFrame(columns=headers)
@@ -216,6 +221,7 @@ def load_data(_session_id=None):
             "Gol": [8, 15],
             "Assist": [12, 7],
             "Minuti Giocati": [3200, 3650],
+            "Numero Visione Partite": [5, 8],
             "Data Inizio Contratto": ["2022-07-01", "2021-08-15"],
             "Data Fine Contratto": ["2025-06-30", "2024-07-31"],
             "Da Monitorare": ["X", ""],
@@ -417,6 +423,8 @@ def main():
                 inizio_contratto = st.date_input("Data Inizio Contratto")
                 fine_contratto = st.date_input("Data Fine Contratto")
                 
+                numero_visione = st.number_input("Numero Visione Partite", min_value=0, value=0)
+                
                 da_monitorare = st.checkbox("Da Monitorare")
                 presentato_miniero = st.checkbox("Presentato a Miniero")
             
@@ -440,6 +448,7 @@ def main():
                         "Gol": gol,
                         "Assist": assist,
                         "Minuti Giocati": minuti,
+                        "Numero Visione Partite": numero_visione,
                         "Data Inizio Contratto": inizio_contratto.strftime("%Y-%m-%d"),
                         "Data Fine Contratto": fine_contratto.strftime("%Y-%m-%d"),
                         "Da Monitorare": "X" if da_monitorare else "",
@@ -531,6 +540,9 @@ def main():
                         fine_contratto = st.date_input("Data Fine Contratto", 
                                                      value=safe_date_convert(player_data.get("Data Fine Contratto")))
                         
+                        numero_visione = st.number_input("Numero Visione Partite", min_value=0, 
+                                                        value=safe_int_convert(player_data.get("Numero Visione Partite"), 0))
+                        
                         da_monitorare = st.checkbox("Da Monitorare", value=player_data.get("Da Monitorare") == "X")
                         presentato_miniero = st.checkbox("Presentato a Miniero", 
                                                        value=player_data.get("Presentato a Miniero") == "X")
@@ -562,6 +574,7 @@ def main():
                                 df.loc[selected_player, "Gol"] = gol
                                 df.loc[selected_player, "Assist"] = assist
                                 df.loc[selected_player, "Minuti Giocati"] = minuti
+                                df.loc[selected_player, "Numero Visione Partite"] = numero_visione
                                 df.loc[selected_player, "Data Inizio Contratto"] = inizio_contratto.strftime("%Y-%m-%d")
                                 df.loc[selected_player, "Data Fine Contratto"] = fine_contratto.strftime("%Y-%m-%d")
                                 df.loc[selected_player, "Da Monitorare"] = "X" if da_monitorare else ""
@@ -628,4 +641,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-                                
