@@ -413,6 +413,35 @@ def main():
             
             st.divider()
             
+            # Filtri di ricerca
+            st.subheader("🔍 Filtri di Ricerca")
+            col_search1, col_search2, col_search3 = st.columns(3)
+            
+            with col_search1:
+                search_name_dash = st.text_input("🔍 Cerca per Nome", key="search_dash")
+                
+            with col_search2:
+                filter_squad_dash = st.multiselect("Filtra per Squadra", options=df["Squadra"].unique(), key="squad_dash")
+                
+            with col_search3:
+                filter_role_dash = st.multiselect("Filtra per Ruolo", options=df["Ruolo"].unique(), key="role_dash")
+            
+            # Applica filtri
+            filtered_df = df.copy()
+            
+            if search_name_dash:
+                filtered_df = filtered_df[filtered_df["Nome Giocatore"].str.contains(search_name_dash, case=False, na=False)]
+            
+            if filter_squad_dash:
+                filtered_df = filtered_df[filtered_df["Squadra"].isin(filter_squad_dash)]
+                
+            if filter_role_dash:
+                filtered_df = filtered_df[filtered_df["Ruolo"].isin(filter_role_dash)]
+            
+            st.info(f"📊 Visualizzati **{len(filtered_df)}** giocatori su {len(df)} totali")
+            
+            st.divider()
+            
             # Sezione Anagrafica Giocatore
             st.subheader("👤 Anagrafica Giocatore")
             anagrafica_cols = [
@@ -421,8 +450,8 @@ def main():
                 "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
                 "Data Fine Contratto", "Link Transfermarkt"
             ]
-            df_anagrafica = df[[col for col in anagrafica_cols if col in df.columns]]
-            st.dataframe(df_anagrafica, use_container_width=True)
+            df_anagrafica = filtered_df[[col for col in anagrafica_cols if col in filtered_df.columns]]
+            st.dataframe(df_anagrafica, use_container_width=True, hide_index=True)
             
             st.divider()
             
@@ -434,8 +463,8 @@ def main():
                 "Livello 1 Prospettiva", "Data inserimento in piattaforma", 
                 "Data ultima visione", "Data presentazione a Miniero"
             ]
-            df_analisi = df[[col for col in analisi_cols if col in df.columns]]
-            st.dataframe(df_analisi, use_container_width=True)
+            df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]]
+            st.dataframe(df_analisi, use_container_width=True, hide_index=True)
             
             st.divider()
             
@@ -444,8 +473,8 @@ def main():
             note_cols = [
                 "Nome Giocatore", "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
             ]
-            df_note = df[[col for col in note_cols if col in df.columns]]
-            st.dataframe(df_note, use_container_width=True)
+            df_note = filtered_df[[col for col in note_cols if col in filtered_df.columns]]
+            st.dataframe(df_note, use_container_width=True, hide_index=True)
             
         else:
             st.info("Nessun giocatore nel database. Inizia aggiungendo un nuovo giocatore!")
