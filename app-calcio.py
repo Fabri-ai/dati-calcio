@@ -180,19 +180,22 @@ def load_data(_session_id=None):
             data = sheet.get_all_records()
             df = pd.DataFrame(data)
             
-            # Aggiungi la colonna "Numero Visione Partite" se non esiste
-            if len(df) > 0 and "Numero Visione Partite" not in df.columns:
-                df["Numero Visione Partite"] = 0
+            # Aggiungi colonne se non esistono
+            new_columns = {
+                "Numero Visione Partite": 0,
+                "Livello 1": "",
+                "Livello 2": "",
+                "Livello 1 Prospettiva": "",
+                "Link Transfermarkt": "",
+                "Data inserimento in piattaforma": "",
+                "Data ultima visione": "",
+                "Data presentazione a Miniero": ""
+            }
             
-            # Aggiungi le nuove colonne se non esistono
-            if len(df) > 0 and "Livello 1" not in df.columns:
-                df["Livello 1"] = ""
-            if len(df) > 0 and "Livello 2" not in df.columns:
-                df["Livello 2"] = ""
-            if len(df) > 0 and "Livello 1 Prospettiva" not in df.columns:
-                df["Livello 1 Prospettiva"] = ""
-            if len(df) > 0 and "Link Transfermarkt" not in df.columns:
-                df["Link Transfermarkt"] = ""
+            if len(df) > 0:
+                for col_name, default_value in new_columns.items():
+                    if col_name not in df.columns:
+                        df[col_name] = default_value
             
             if len(df) > 0:
                 rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000 (Google Sheets supporta fino a 10 milioni di righe)"
@@ -206,10 +209,12 @@ def load_data(_session_id=None):
                     "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
                     "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
                     "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
-                    "Data Fine Contratto", "Numero Visione Partite", "Da Monitorare", 
-                    "Note Danilo/Antonio", "Note Alessio/Fabrizio", "Presentato a Miniero", 
-                    "Risposta Miniero", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
-                    "Link Transfermarkt"
+                    "Data Fine Contratto", "Numero Visione Partite", 
+                    "Data inserimento in piattaforma", "Data ultima visione", 
+                    "Data presentazione a Miniero",
+                    "Da Monitorare", "Note Danilo/Antonio", "Note Alessio/Fabrizio", 
+                    "Presentato a Miniero", "Risposta Miniero", "Livello 1", "Livello 2", 
+                    "Livello 1 Prospettiva", "Link Transfermarkt"
                 ]
                 sheet.insert_row(headers, 1)
                 return pd.DataFrame(columns=headers)
@@ -235,6 +240,9 @@ def load_data(_session_id=None):
             "Data Inizio Contratto": ["2022-07-01", "2021-08-15"],
             "Data Fine Contratto": ["2025-06-30", "2024-07-31"],
             "Numero Visione Partite": [5, 8],
+            "Data inserimento in piattaforma": ["2024-01-15", "2024-02-20"],
+            "Data ultima visione": ["2024-03-10", "2024-03-25"],
+            "Data presentazione a Miniero": ["2024-02-01", ""],
             "Da Monitorare": ["X", ""],
             "Note Danilo/Antonio": ["Buon potenziale", "Ottimo in zona gol"],
             "Note Alessio/Fabrizio": ["Da seguire", "Pronto per il salto"],
@@ -450,6 +458,11 @@ def main():
                 
                 numero_visione = st.number_input("Numero Visione Partite", min_value=0, value=0)
                 
+                # NUOVI CAMPI DATA
+                data_inserimento = st.date_input("📅 Data inserimento in piattaforma", value=date.today())
+                data_ultima_visione = st.date_input("👁️ Data ultima visione")
+                data_presentazione_miniero = st.date_input("🎯 Data presentazione a Miniero")
+                
                 da_monitorare = st.checkbox("Da Monitorare")
                 presentato_miniero = st.checkbox("Presentato a Miniero")
             
@@ -478,6 +491,9 @@ def main():
                         "Data Inizio Contratto": inizio_contratto.strftime("%Y-%m-%d"),
                         "Data Fine Contratto": fine_contratto.strftime("%Y-%m-%d"),
                         "Numero Visione Partite": numero_visione,
+                        "Data inserimento in piattaforma": data_inserimento.strftime("%Y-%m-%d"),
+                        "Data ultima visione": data_ultima_visione.strftime("%Y-%m-%d"),
+                        "Data presentazione a Miniero": data_presentazione_miniero.strftime("%Y-%m-%d"),
                         "Da Monitorare": "X" if da_monitorare else "",
                         "Note Danilo/Antonio": note_danilo,
                         "Note Alessio/Fabrizio": note_alessio,
@@ -584,6 +600,14 @@ def main():
                         numero_visione = st.number_input("Numero Visione Partite", min_value=0, 
                                                         value=safe_int_convert(player_data.get("Numero Visione Partite"), 0))
                         
+                        # NUOVI CAMPI DATA
+                        data_inserimento = st.date_input("📅 Data inserimento in piattaforma", 
+                                                        value=safe_date_convert(player_data.get("Data inserimento in piattaforma")))
+                        data_ultima_visione = st.date_input("👁️ Data ultima visione", 
+                                                           value=safe_date_convert(player_data.get("Data ultima visione")))
+                        data_presentazione_miniero = st.date_input("🎯 Data presentazione a Miniero", 
+                                                                  value=safe_date_convert(player_data.get("Data presentazione a Miniero")))
+                        
                         da_monitorare = st.checkbox("Da Monitorare", value=player_data.get("Da Monitorare") == "X")
                         presentato_miniero = st.checkbox("Presentato a Miniero", 
                                                        value=player_data.get("Presentato a Miniero") == "X")
@@ -622,6 +646,9 @@ def main():
                                 df.loc[selected_player, "Data Inizio Contratto"] = inizio_contratto.strftime("%Y-%m-%d")
                                 df.loc[selected_player, "Data Fine Contratto"] = fine_contratto.strftime("%Y-%m-%d")
                                 df.loc[selected_player, "Numero Visione Partite"] = numero_visione
+                                df.loc[selected_player, "Data inserimento in piattaforma"] = data_inserimento.strftime("%Y-%m-%d")
+                                df.loc[selected_player, "Data ultima visione"] = data_ultima_visione.strftime("%Y-%m-%d")
+                                df.loc[selected_player, "Data presentazione a Miniero"] = data_presentazione_miniero.strftime("%Y-%m-%d")
                                 df.loc[selected_player, "Da Monitorare"] = "X" if da_monitorare else ""
                                 df.loc[selected_player, "Presentato a Miniero"] = "X" if presentato_miniero else ""
                                 df.loc[selected_player, "Note Danilo/Antonio"] = note_danilo
