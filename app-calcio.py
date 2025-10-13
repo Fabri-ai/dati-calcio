@@ -450,8 +450,8 @@ def main():
                 "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
                 "Data Fine Contratto", "Link Transfermarkt"
             ]
-            df_anagrafica = filtered_df[[col for col in anagrafica_cols if col in filtered_df.columns]]
-            st.dataframe(df_anagrafica, use_container_width=True, hide_index=True)
+            df_anagrafica = filtered_df[[col for col in anagrafica_cols if col in filtered_df.columns]].reset_index(drop=True)
+            st.dataframe(df_anagrafica, use_container_width=True, hide_index=True, height=400)
             
             st.divider()
             
@@ -463,8 +463,8 @@ def main():
                 "Livello 1 Prospettiva", "Data inserimento in piattaforma", 
                 "Data ultima visione", "Data presentazione a Miniero"
             ]
-            df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]]
-            st.dataframe(df_analisi, use_container_width=True, hide_index=True)
+            df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]].reset_index(drop=True)
+            st.dataframe(df_analisi, use_container_width=True, hide_index=True, height=400)
             
             st.divider()
             
@@ -473,8 +473,8 @@ def main():
             note_cols = [
                 "Nome Giocatore", "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
             ]
-            df_note = filtered_df[[col for col in note_cols if col in filtered_df.columns]]
-            st.dataframe(df_note, use_container_width=True, hide_index=True)
+            df_note = filtered_df[[col for col in note_cols if col in filtered_df.columns]].reset_index(drop=True)
+            st.dataframe(df_note, use_container_width=True, hide_index=True, height=400)
             
         else:
             st.info("Nessun giocatore nel database. Inizia aggiungendo un nuovo giocatore!")
