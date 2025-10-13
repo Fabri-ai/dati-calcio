@@ -393,6 +393,7 @@ def main():
         st.header("Dashboard Giocatori")
         
         if not df.empty:
+            # Metriche generali
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Totale Giocatori", len(df))
@@ -409,9 +410,43 @@ def main():
                 else:
                     avg_age = 0
                 st.metric("Età Media", f"{avg_age:.1f}")
-
-            st.subheader("Lista Giocatori")
-            st.dataframe(df, use_container_width=True)
+            
+            st.divider()
+            
+            # Sezione Anagrafica Giocatore
+            st.subheader("👤 Anagrafica Giocatore")
+            anagrafica_cols = [
+                "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
+                "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
+                "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
+                "Data Fine Contratto", "Link Transfermarkt"
+            ]
+            df_anagrafica = df[[col for col in anagrafica_cols if col in df.columns]]
+            st.dataframe(df_anagrafica, use_container_width=True)
+            
+            st.divider()
+            
+            # Sezione Nostra Analisi
+            st.subheader("📊 Nostra Analisi")
+            analisi_cols = [
+                "Nome Giocatore", "Squadra", "Da Monitorare", "Presentato a Miniero", 
+                "Risposta Miniero", "Numero Visione Partite", "Livello 1", "Livello 2", 
+                "Livello 1 Prospettiva", "Data inserimento in piattaforma", 
+                "Data ultima visione", "Data presentazione a Miniero"
+            ]
+            df_analisi = df[[col for col in analisi_cols if col in df.columns]]
+            st.dataframe(df_analisi, use_container_width=True)
+            
+            st.divider()
+            
+            # Sezione Nostre Note
+            st.subheader("📝 Nostre Note")
+            note_cols = [
+                "Nome Giocatore", "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
+            ]
+            df_note = df[[col for col in note_cols if col in df.columns]]
+            st.dataframe(df_note, use_container_width=True)
+            
         else:
             st.info("Nessun giocatore nel database. Inizia aggiungendo un nuovo giocatore!")
 
