@@ -438,6 +438,9 @@ def main():
             if filter_role_dash:
                 filtered_df = filtered_df[filtered_df["Ruolo"].isin(filter_role_dash)]
             
+            # NUOVO: Inverti l'ordine per mostrare gli ultimi inseriti per primi
+            filtered_df = filtered_df.iloc[::-1].reset_index(drop=True)
+            
             st.info(f"📊 Visualizzati **{len(filtered_df)}** giocatori su {len(df)} totali")
             
             st.divider()
