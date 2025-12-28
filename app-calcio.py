@@ -442,10 +442,11 @@ def main():
             
             st.divider()
             
-            # Sezione Anagrafica Giocatore
+            # Sezione Anagrafica Giocatore - ORDINE MODIFICATO CON LIVELLI DOPO NOME
             st.subheader("👤 Anagrafica Giocatore")
             anagrafica_cols = [
-                "Nome Giocatore", "Squadra", "Età", "Ruolo", "Valore di Mercato",
+                "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
+                "Squadra", "Età", "Ruolo", "Valore di Mercato",
                 "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
                 "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
                 "Data Fine Contratto", "Link Transfermarkt"
@@ -455,12 +456,13 @@ def main():
             
             st.divider()
             
-            # Sezione Nostra Analisi
+            # Sezione Nostra Analisi - ORDINE MODIFICATO CON LIVELLI DOPO NOME
             st.subheader("📊 Nostra Analisi")
             analisi_cols = [
-                "Nome Giocatore", "Squadra", "Da Monitorare", "Presentato a Miniero", 
-                "Risposta Miniero", "Numero Visione Partite", "Livello 1", "Livello 2", 
-                "Livello 1 Prospettiva", "Data inserimento in piattaforma", 
+                "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
+                "Squadra", "Da Monitorare", "Presentato a Miniero", 
+                "Risposta Miniero", "Numero Visione Partite", 
+                "Data inserimento in piattaforma", 
                 "Data ultima visione", "Data presentazione a Miniero"
             ]
             df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]].reset_index(drop=True)
@@ -468,10 +470,11 @@ def main():
             
             st.divider()
             
-            # Sezione Nostre Note
+            # Sezione Nostre Note - ORDINE MODIFICATO CON LIVELLI DOPO NOME
             st.subheader("📝 Nostre Note")
             note_cols = [
-                "Nome Giocatore", "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
+                "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
+                "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
             ]
             df_note = filtered_df[[col for col in note_cols if col in filtered_df.columns]].reset_index(drop=True)
             st.dataframe(df_note, use_container_width=True, hide_index=True, height=400)
