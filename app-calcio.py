@@ -128,15 +128,7 @@ def keep_session_alive():
         if st.session_state.username and "auth" not in st.query_params:
             set_auth_url(st.session_state.username)
 
-# NUOVO: Funzione per applicare lo stile alle righe in base allo stato "Da Monitorare"
-def apply_row_style(df, monitored_col):
-    """Applica lo stile alle righe dei giocatori da monitorare"""
-    def highlight_row(row):
-        if row.get('Da Monitorare', '') == 'X':
-            return ['background-color: #ffeb3b'] * len(row)
-        return [''] * len(row)
-    
-    return df.style.apply(highlight_row, axis=1)
+# NUOVO: Nessuno stile pandas - useremo un approccio diverso più avanti
 
 # Funzione per inizializzare la connessione a Google Sheets
 @st.cache_resource
@@ -457,29 +449,54 @@ def main():
             
             # Sezione Anagrafica Giocatore - ORDINE MODIFICATO CON LIVELLI DOPO NOME
             st.subheader("👤 Anagrafica Giocatore")
+            
+            # Prepara il dataframe
+            df_anagrafica = filtered_df.copy()
+            
+            # Aggiungi una colonna indicatore visivo per "Da Monitorare"
+            if "Da Monitorare" in df_anagrafica.columns:
+                df_anagrafica["🔔 Monitor"] = df_anagrafica["Da Monitorare"].apply(
+                    lambda x: "⭐ SI" if x == "X" else ""
+                )
+            
             anagrafica_cols = [
-                "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
+                "🔔 Monitor", "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
                 "Squadra", "Età", "Ruolo", "Valore di Mercato",
                 "Procuratore", "Altezza", "Piede", "Convocazioni", "Partite Giocate",
                 "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
                 "Data Fine Contratto", "Link Transfermarkt"
             ]
             
-            # Crea il dataframe con le colonne richieste + Da Monitorare per lo stile
-            df_anagrafica_with_monitor = filtered_df[[col for col in anagrafica_cols + ["Da Monitorare"] if col in filtered_df.columns]].reset_index(drop=True)
+            df_to_show = df_anagrafica[[col for col in anagrafica_cols if col in df_anagrafica.columns]].reset_index(drop=True)
             
-            # NUOVO: Applica l'evidenziazione gialla per i giocatori da monitorare
-            styled_anagrafica = apply_row_style(df_anagrafica_with_monitor, "Da Monitorare")
-            
-            # Nascondi la colonna "Da Monitorare" dopo aver applicato lo stile
-            styled_anagrafica = styled_anagrafica.hide(subset=["Da Monitorare"], axis=1)
-            
-            st.dataframe(styled_anagrafica, use_container_width=True, hide_index=True, height=400)
+            st.dataframe(
+                df_to_show, 
+                use_container_width=True, 
+                hide_index=True, 
+                height=400,
+                column_config={
+                    "🔔 Monitor": st.column_config.TextColumn(
+                        "Monitor",
+                        help="⭐ indica giocatori da monitorare",
+                        width="small"
+                    )
+                }
+            )
             
             st.divider()
             
             # Sezione Nostra Analisi - ORDINE MODIFICATO CON LIVELLI DOPO NOME
             st.subheader("📊 Nostra Analisi")
+            
+            # Prepara il dataframe
+            df_analisi_full = filtered_df.copy()
+            
+            # Modifica la colonna "Da Monitorare" per renderla più visibile
+            if "Da Monitorare" in df_analisi_full.columns:
+                df_analisi_full["Da Monitorare"] = df_analisi_full["Da Monitorare"].apply(
+                    lambda x: "⭐ SI" if x == "X" else "No"
+                )
+            
             analisi_cols = [
                 "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
                 "Squadra", "Da Monitorare", "Presentato a Miniero", 
@@ -487,31 +504,56 @@ def main():
                 "Data inserimento in piattaforma", 
                 "Data ultima visione", "Data presentazione a Miniero"
             ]
-            df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]].reset_index(drop=True)
+            df_analisi = df_analisi_full[[col for col in analisi_cols if col in df_analisi_full.columns]].reset_index(drop=True)
             
-            # NUOVO: Applica l'evidenziazione gialla per i giocatori da monitorare
-            styled_analisi = apply_row_style(df_analisi, "Da Monitorare")
-            st.dataframe(styled_analisi, use_container_width=True, hide_index=True, height=400)
+            st.dataframe(
+                df_analisi, 
+                use_container_width=True, 
+                hide_index=True, 
+                height=400,
+                column_config={
+                    "Da Monitorare": st.column_config.TextColumn(
+                        "Da Monitorare",
+                        help="⭐ indica giocatori da monitorare",
+                        width="medium"
+                    )
+                }
+            )
             
             st.divider()
             
             # Sezione Nostre Note - ORDINE MODIFICATO CON LIVELLI DOPO NOME
             st.subheader("📝 Nostre Note")
+            
+            # Prepara il dataframe
+            df_note_full = filtered_df.copy()
+            
+            # Aggiungi una colonna indicatore visivo per "Da Monitorare"
+            if "Da Monitorare" in df_note_full.columns:
+                df_note_full["🔔 Monitor"] = df_note_full["Da Monitorare"].apply(
+                    lambda x: "⭐ SI" if x == "X" else ""
+                )
+            
             note_cols = [
-                "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
+                "🔔 Monitor", "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
                 "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
             ]
             
-            # Crea il dataframe con le colonne richieste + Da Monitorare per lo stile
-            df_note_with_monitor = filtered_df[[col for col in note_cols + ["Da Monitorare"] if col in filtered_df.columns]].reset_index(drop=True)
+            df_note = df_note_full[[col for col in note_cols if col in df_note_full.columns]].reset_index(drop=True)
             
-            # NUOVO: Applica l'evidenziazione gialla per i giocatori da monitorare
-            styled_note = apply_row_style(df_note_with_monitor, "Da Monitorare")
-            
-            # Nascondi la colonna "Da Monitorare" dopo aver applicato lo stile
-            styled_note = styled_note.hide(subset=["Da Monitorare"], axis=1)
-            
-            st.dataframe(styled_note, use_container_width=True, hide_index=True, height=400)
+            st.dataframe(
+                df_note, 
+                use_container_width=True, 
+                hide_index=True, 
+                height=400,
+                column_config={
+                    "🔔 Monitor": st.column_config.TextColumn(
+                        "Monitor",
+                        help="⭐ indica giocatori da monitorare",
+                        width="small"
+                    )
+                }
+            )
             
         else:
             st.info("Nessun giocatore nel database. Inizia aggiungendo un nuovo giocatore!")
@@ -813,9 +855,26 @@ def main():
             
             st.subheader(f"Risultati ({len(filtered_df)} giocatori)")
             
-            # NUOVO: Applica l'evidenziazione gialla anche nella ricerca
-            styled_search = apply_row_style(filtered_df, "Da Monitorare")
-            st.dataframe(styled_search, use_container_width=True)
+            # Prepara il dataframe per la ricerca
+            df_search = filtered_df.copy()
+            
+            # Modifica la colonna "Da Monitorare" per renderla più visibile
+            if "Da Monitorare" in df_search.columns:
+                df_search["Da Monitorare"] = df_search["Da Monitorare"].apply(
+                    lambda x: "⭐ SI" if x == "X" else "No"
+                )
+            
+            st.dataframe(
+                df_search, 
+                use_container_width=True,
+                column_config={
+                    "Da Monitorare": st.column_config.TextColumn(
+                        "Da Monitorare",
+                        help="⭐ indica giocatori da monitorare",
+                        width="medium"
+                    )
+                }
+            )
         else:
             st.info("Nessun dato disponibile per la ricerca.")
 
