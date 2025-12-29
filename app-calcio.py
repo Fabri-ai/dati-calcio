@@ -129,9 +129,9 @@ def keep_session_alive():
             set_auth_url(st.session_state.username)
 
 # NUOVO: Funzione per evidenziare le righe dei giocatori da monitorare
-def highlight_monitored_players(row):
+def highlight_monitored_players(row, monitored_status):
     """Evidenzia in giallo le righe dei giocatori da monitorare"""
-    if 'Da Monitorare' in row and row['Da Monitorare'] == 'X':
+    if monitored_status == 'X':
         return ['background-color: #ffeb3b'] * len(row)
     else:
         return [''] * len(row)
@@ -462,16 +462,18 @@ def main():
                 "Gol", "Assist", "Minuti Giocati", "Data Inizio Contratto", 
                 "Data Fine Contratto", "Link Transfermarkt"
             ]
-            # Aggiungi temporaneamente "Da Monitorare" per l'evidenziazione
-            df_anagrafica_temp = filtered_df[[col for col in anagrafica_cols + ["Da Monitorare"] if col in filtered_df.columns]]
-            df_anagrafica = df_anagrafica_temp[[col for col in anagrafica_cols if col in df_anagrafica_temp.columns]].copy()
+            df_anagrafica = filtered_df[[col for col in anagrafica_cols if col in filtered_df.columns]].reset_index(drop=True)
             
             # NUOVO: Applica l'evidenziazione gialla per i giocatori da monitorare
-            styled_anagrafica = df_anagrafica.style.apply(
-                lambda row: highlight_monitored_players(df_anagrafica_temp.iloc[row.name]), 
-                axis=1
-            )
-            st.dataframe(styled_anagrafica, use_container_width=True, hide_index=True, height=400)
+            if "Da Monitorare" in filtered_df.columns:
+                monitored_list = filtered_df["Da Monitorare"].reset_index(drop=True)
+                styled_anagrafica = df_anagrafica.style.apply(
+                    lambda row: highlight_monitored_players(row, monitored_list[row.name]), 
+                    axis=1
+                )
+                st.dataframe(styled_anagrafica, use_container_width=True, hide_index=True, height=400)
+            else:
+                st.dataframe(df_anagrafica, use_container_width=True, hide_index=True, height=400)
             
             st.divider()
             
@@ -484,11 +486,18 @@ def main():
                 "Data inserimento in piattaforma", 
                 "Data ultima visione", "Data presentazione a Miniero"
             ]
-            df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]].copy()
+            df_analisi = filtered_df[[col for col in analisi_cols if col in filtered_df.columns]].reset_index(drop=True)
             
             # NUOVO: Applica l'evidenziazione gialla per i giocatori da monitorare
-            styled_analisi = df_analisi.style.apply(highlight_monitored_players, axis=1)
-            st.dataframe(styled_analisi, use_container_width=True, hide_index=True, height=400)
+            if "Da Monitorare" in df_analisi.columns:
+                monitored_list = df_analisi["Da Monitorare"]
+                styled_analisi = df_analisi.style.apply(
+                    lambda row: highlight_monitored_players(row, monitored_list[row.name]), 
+                    axis=1
+                )
+                st.dataframe(styled_analisi, use_container_width=True, hide_index=True, height=400)
+            else:
+                st.dataframe(df_analisi, use_container_width=True, hide_index=True, height=400)
             
             st.divider()
             
@@ -498,16 +507,18 @@ def main():
                 "Nome Giocatore", "Livello 1", "Livello 2", "Livello 1 Prospettiva",
                 "Squadra", "Note Danilo/Antonio", "Note Alessio/Fabrizio"
             ]
-            # Aggiungi temporaneamente "Da Monitorare" per l'evidenziazione
-            df_note_temp = filtered_df[[col for col in note_cols + ["Da Monitorare"] if col in filtered_df.columns]]
-            df_note = df_note_temp[[col for col in note_cols if col in df_note_temp.columns]].copy()
+            df_note = filtered_df[[col for col in note_cols if col in filtered_df.columns]].reset_index(drop=True)
             
             # NUOVO: Applica l'evidenziazione gialla per i giocatori da monitorare
-            styled_note = df_note.style.apply(
-                lambda row: highlight_monitored_players(df_note_temp.iloc[row.name]), 
-                axis=1
-            )
-            st.dataframe(styled_note, use_container_width=True, hide_index=True, height=400)
+            if "Da Monitorare" in filtered_df.columns:
+                monitored_list = filtered_df["Da Monitorare"].reset_index(drop=True)
+                styled_note = df_note.style.apply(
+                    lambda row: highlight_monitored_players(row, monitored_list[row.name]), 
+                    axis=1
+                )
+                st.dataframe(styled_note, use_container_width=True, hide_index=True, height=400)
+            else:
+                st.dataframe(df_note, use_container_width=True, hide_index=True, height=400)
             
         else:
             st.info("Nessun giocatore nel database. Inizia aggiungendo un nuovo giocatore!")
@@ -810,8 +821,15 @@ def main():
             st.subheader(f"Risultati ({len(filtered_df)} giocatori)")
             
             # NUOVO: Applica l'evidenziazione gialla anche nella ricerca
-            styled_search = filtered_df.style.apply(highlight_monitored_players, axis=1)
-            st.dataframe(styled_search, use_container_width=True)
+            if "Da Monitorare" in filtered_df.columns:
+                monitored_list = filtered_df["Da Monitorare"]
+                styled_search = filtered_df.style.apply(
+                    lambda row: highlight_monitored_players(row, monitored_list[row.name]), 
+                    axis=1
+                )
+                st.dataframe(styled_search, use_container_width=True)
+            else:
+                st.dataframe(filtered_df, use_container_width=True)
         else:
             st.info("Nessun dato disponibile per la ricerca.")
 
