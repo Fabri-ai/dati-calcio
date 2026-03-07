@@ -7,6 +7,7 @@ from datetime import date, datetime
 import hashlib
 import time
 import base64
+import random
 
 # Configurazione pagina
 st.set_page_config(
@@ -97,6 +98,35 @@ def keep_session_alive():
         if st.session_state.username and "auth" not in st.query_params:
             set_auth_url(st.session_state.username)
 
+# ─────────────────────────────────────────────
+# RETRY CON EXPONENTIAL BACKOFF
+# ─────────────────────────────────────────────
+
+def call_gsheets_with_retry(api_call, max_retries=5):
+    """
+    Esegue una chiamata all'API Google Sheets con retry esponenziale.
+    Gestisce gli errori 503, 500 e 429 (quota exceeded).
+    """
+    for attempt in range(max_retries):
+        try:
+            return api_call()
+        except gspread.exceptions.APIError as e:
+            status = e.response.status_code if hasattr(e, 'response') else 0
+            if status in [503, 500, 429] and attempt < max_retries - 1:
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
+            else:
+                raise
+        except Exception as e:
+            err_str = str(e).lower()
+            if any(code in err_str for code in ["503", "500", "429", "unavailable"]) and attempt < max_retries - 1:
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
+            else:
+                raise
+    raise Exception(f"API Google Sheets non disponibile dopo {max_retries} tentativi")
+
+
 @st.cache_resource
 def init_gsheet():
     try:
@@ -114,7 +144,7 @@ def init_gsheet():
             try:
                 spreadsheet = gc.open_by_key(sheet_id)
                 sheet = spreadsheet.sheet1
-                sheet.get('A1:A1')
+                call_gsheets_with_retry(lambda: sheet.get('A1:A1'))
                 return sheet
             except gspread.exceptions.SpreadsheetNotFound:
                 st.error("❌ Foglio Google Sheets non trovato.")
@@ -134,7 +164,7 @@ def load_data(_session_id=None):
     sheet = init_gsheet()
     if sheet:
         try:
-            data = sheet.get_all_records()
+            data = call_gsheets_with_retry(lambda: sheet.get_all_records())
             df = pd.DataFrame(data)
 
             new_columns = {
@@ -177,7 +207,7 @@ def load_data(_session_id=None):
                     "Livello 1 Prospettiva", "Link Transfermarkt",
                     "Monitoraggio Miniero", "In Scadenza", "Nazionalità"
                 ]
-                sheet.insert_row(headers, 1)
+                call_gsheets_with_retry(lambda: sheet.insert_row(headers, 1))
                 return pd.DataFrame(columns=headers)
             except Exception as header_error:
                 st.error(f"Errore inizializzazione foglio: {str(header_error)}")
@@ -227,8 +257,10 @@ def save_data(df):
     sheet = init_gsheet()
     if sheet:
         try:
-            sheet.clear()
-            sheet.update([df.columns.values.tolist()] + df.values.tolist())
+            call_gsheets_with_retry(lambda: sheet.clear())
+            call_gsheets_with_retry(
+                lambda: sheet.update([df.columns.values.tolist()] + df.values.tolist())
+            )
             st.success("✅ Dati salvati con successo!")
             load_data.clear()
             rows_info = f"Righe utilizzate: {len(df)+1}/10,000,000"
